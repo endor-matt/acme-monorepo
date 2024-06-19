@@ -1,0 +1,191 @@
+name: CI Runner
+on:
+  workflow_dispatch:
+
+
+defaults:
+  run:
+    shell: bash
+
+concurrency: ci-runner
+
+env:
+  GO_REPOSITORY_USE_HOST_CACHE: 1
+
+jobs:
+  ci_runner:
+    permissions:
+      contents: read # for dorny/paths-filter to fetch a list of changed files
+      pull-requests: read # for dorny/paths-filter to read pull requests
+    name: Check if CI Runner Workflow is required
+    runs-on: [self-hosted, endorci-runner]
+    outputs:
+      required: ${{ steps.ci_runner.outputs.build_endorci_runner_container }}
+      userid: ${{ steps.user_name.outputs.user}}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dorny/paths-filter@4512585405083f25c027a35db413c2b3b9006d50 #v2
+        id: filter
+        with:
+          filters: ".github/filters.yml"
+      - name: Check if CI Runner Build is required
+        id: ci_runner
+        run: |
+          echo "build_endorci_runner_container=${{ steps.filter.outputs.build_endorci_runner_container }}" >> $GITHUB_OUTPUT
+      - name: Set User Name
+        id: user_name
+        run: |
+          USER=${{ github.actor }}
+          echo "user=${USER,,}" >> $GITHUB_OUTPUT
+
+  build:
+    permissions:
+      id-token: "write"
+      contents: "read"
+    needs: [ci_runner]
+    if: ${{ needs.ci_runner.outputs.required == 'true' }}
+    name: Build CI Runner Docker Image
+    runs-on: [self-hosted, endorci-runner]
+    env:
+      IMAGE: us-central1-docker.pkg.dev/endor-ci/private/endorci_runner:${{ needs.ci_runner.outputs.userid }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build Docker Image
+        run: |
+          cd infra/docker/endorci_runner
+          docker build --platform linux/amd64 -t ${IMAGE} .
+      - name: "GCP Authentication"
+        id: auth
+        uses: "google-github-actions/auth@2671692c371cbef34ed8ded9f197670c88c9d343" #v0.8.2
+        with:
+          token_format: "access_token"
+          workload_identity_provider: ${{ secrets.CI_WORKLOAD_PROVIDER }}
+          service_account: ${{ secrets.CI_SERVICE_ACCOUNT }}
+          create_credentials_file: false
+      - name: Login to Google Artifact Repository
+        uses: docker/login-action@v2
+        with:
+          registry: us-central1-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+      - name: Push Docker Image
+        run: |
+          docker push --quiet ${IMAGE}
+
+  scan:
+    permissions:
+      id-token: "write"
+      contents: "read"
+    needs: [ci_runner, build]
+    if: ${{ needs.ci_runner.outputs.required == 'true' }}
+    name: Grype Scan of built Docker Image
+    runs-on: [self-hosted, endorci-runner]
+    env:
+      BUCKET: endor-docker-scan-report
+      IMAGE: us-central1-docker.pkg.dev/endor-ci/private/endorci_runner:${{ needs.ci_runner.outputs.userid }}
+    steps:
+      - name: Determine the folder structure for report
+        run: |
+          IMAGE_NAME=$(basename "${IMAGE}")
+          DATE=$(date +"%Y-%m-%d")
+          TIME=$(TZ=UTC date +"%H:%M:%S")
+          echo "DESTINATION=${BUCKET}/${IMAGE_NAME}/${DATE}/${TIME}" >> $GITHUB_ENV
+      - name: "GCP Authentication"
+        id: auth
+        uses: "google-github-actions/auth@2671692c371cbef34ed8ded9f197670c88c9d343" #v0.8.2
+        with:
+          token_format: "access_token"
+          workload_identity_provider: ${{ secrets.CI_WORKLOAD_PROVIDER }}
+          service_account: ${{ secrets.CI_SERVICE_ACCOUNT }}
+      - name: Login to Google Artifact Repository
+        uses: docker/login-action@v2
+        with:
+          registry: us-central1-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+      - name: Anchore/Grype Scan of Docker Image
+        id: scan
+        uses: anchore/scan-action@v3
+        with:
+          image: ${{ env.IMAGE }}
+          output-format: sarif
+          fail-build: false
+          severity-cutoff: high
+        env:
+          GRYPE_LOG_LEVEL: error
+          GRYPE_QUIET: true
+      - name: Upload Anchore scan SARIF report
+        uses: google-github-actions/upload-cloud-storage@v1
+        with:
+          path: ${{ steps.scan.outputs.sarif }}
+          destination: ${{ env.DESTINATION }}
+          process_gcloudignore: false
+
+  create_runners:
+    permissions:
+      id-token: "write"
+      contents: "read"
+    needs: [ci_runner, build]
+    if: ${{ needs.ci_runner.outputs.required == 'true' }}
+    name: Create Test Runners
+    runs-on: [self-hosted, endorci-runner]
+    env:
+      IMAGE: us-central1-docker.pkg.dev/endor-ci/private/endorci_runner:${{ needs.ci_runner.outputs.userid }}
+      NAMESPACE: ${{ needs.ci_runner.outputs.userid }}
+      LABEL: endorci-runner-${{ needs.ci_runner.outputs.userid }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: "GCP Authentication"
+        id: auth
+        uses: "google-github-actions/auth@2671692c371cbef34ed8ded9f197670c88c9d343" #v0.8.2
+        with:
+          token_format: "access_token"
+          workload_identity_provider: ${{ secrets.CI_WORKLOAD_PROVIDER }}
+          service_account: ${{ secrets.CI_SERVICE_ACCOUNT }}
+      - name: Helm Upgrade to install new runners
+        run: |
+          sudo apt-get install -y google-cloud-sdk-gke-gcloud-auth-plugin
+          gcloud container clusters get-credentials github-ci-cluster --region us-central1 --project endor-ci
+          cd src/helm/githubtestrunners/
+          helm upgrade --install --create-namespace --namespace ${NAMESPACE} --set image=${IMAGE} --set label=${LABEL} githubtestrunner .
+          kubectl get runners --namespace ${NAMESPACE}
+
+  test:
+    needs: [ci_runner, create_runners]
+    if: ${{ needs.ci_runner.outputs.required == 'true' }}
+    name: Test new CI Runner Image
+    secrets: inherit
+    uses: ./.github/workflows/go.yml
+    with:
+      namespace: ${{ needs.ci_runner.outputs.userid }}
+      runner: endorci-runner-${{ needs.ci_runner.outputs.userid }}
+
+  update_latest:
+    permissions:
+      id-token: "write"
+      contents: "read"
+    needs: [ci_runner, test]
+    if: ${{ needs.ci_runner.outputs.required == 'true' && success() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    name: Update tags of images
+    runs-on: [self-hosted, endorci-runner]
+    env:
+      IMAGE: us-central1-docker.pkg.dev/endor-ci/private/endorci_runner:${{ needs.ci_runner.outputs.userid }}
+    steps:
+      - name: "GCP Authentication"
+        id: auth
+        uses: "google-github-actions/auth@2671692c371cbef34ed8ded9f197670c88c9d343" #v0.8.2
+        with:
+          token_format: "access_token"
+          workload_identity_provider: ${{ secrets.CI_WORKLOAD_PROVIDER }}
+          service_account: ${{ secrets.CI_SERVICE_ACCOUNT }}
+          create_credentials_file: false
+      - name: Retag latest image as last
+        run: |
+          gcloud artifacts docker tags add \
+            us-central1-docker.pkg.dev/endor-ci/private/endorci_runner:latest \
+            us-central1-docker.pkg.dev/endor-ci/private/endorci_runner:last
+      - name: Retag test image to latest
+        run: |
+          gcloud artifacts docker tags add \
+            ${IMAGE} \
+            us-central1-docker.pkg.dev/endor-ci/private/endorci_runner:latest

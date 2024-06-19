@@ -1,0 +1,42 @@
+[?1049h[>4;2m[?1h=[?2004h[?1004h[1;53r[?12h[?12l[22;2t[22;1t[27m[23m[29m[m[H[2J[?25l[53;1H"/var/folders/gh/d4k3jsj52435pnr4rkttl5th0000gp/T/endorctl-data3900934265" 87L, 2687B[1;1Hmeta:
+  annotations: {}
+  create_time: "1970-01-01T00:00:00Z"
+  created_by: null
+  description: TeamCity is a popular CI/CD server developed by JetBrains.
+  kind: null
+  name: TeamCity
+  parent_kind: null
+  parent_uuid: null
+  references: {}
+  tags: []
+  update_time: "2024-05-02T17:59:46.832676660Z"
+  updated_by: null
+  upsert_time: null
+  version: null
+propagate: null
+spec:
+  app_patterns: []
+  badge_patterns: []
+  categories:
+    - CI/CD Pipeline
+  cmd_patterns:
+    - examples: [][24;7Hline_patterns:[25;9H- mvn\s+tc-sdk:(init|start|reloadAgent|reload|reloadResources)
+  display_name: null
+  file_patterns:
+    - examples:[29;9H- https://github.com/eclipse/buildship/tree/21344fe3b1ace95fc39f50bc2800486083e61dbd/.teamcity[30;7Hfilename_patterns:[31;9H- ^\.teamcity\/settings\.kts$[32;7Hline_patterns: []
+    - examples: [][34;7Hfilename_patterns:[35;9H- .*pom\.xml$[36;7Hline_patterns:[37;9H- teamcity-(repository|server)[38;9H- org\.jetbrains\.teamcity[39;9H- teamcity\.dsl\.version
+    - examples: [][41;7Hfilename_patterns:[42;9H- .*build\.gradle[43;9H- .*build\.gradle\.kts[44;7Hline_patterns:[45;9H- teamcityServer[46;9H- teamcity\.jetbrains\.com[47;9H- jetbrains\.com\/teamcity-repository[48;9H- teamcity-(repository|server)
+    - examples: [][50;7Hfilename_patterns:[51;9H- .*\.xml$[52;7Hline_patterns:[1;1H[?25h[?4m
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  [53;1H[?2004l[>4;m[23;2t[23;1t[53;1H[K[53;1H[?1004l[?2004l[?1l>[?1049l[>4;m

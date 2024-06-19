@@ -1,0 +1,39 @@
+name: Gihub actions scan
+on:
+  workflow_dispatch:
+    inputs:
+      tenant_name:
+        description: "GIMMME THE TENANT"
+        required: true
+        default: "demo-trial"
+        type: string
+      api_base:
+        description: "API base URL for EndorLabs"
+        required: true
+        type: choice
+        default: https://api.staging.endorlabs.com
+        options:
+          - https://api.staging.endorlabs.com
+          - https://api.endorlabs.com
+
+jobs:
+  scan_project_acme-monorepo_for_gh_actions:
+    permissions:
+      id-token: write # This is required for requesting the JWT
+      contents: read # ability to access private repos
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: endorlabs/assorted-gh-actions
+      - uses: endorlabs/github-action@main
+        with:
+          namespace: "${{ github.event.inputs.tenant_name || 'jenkins' }}"
+          scan_summary_output_type: "json"
+          scan_github_actions: "true"
+          pr: "false"
+          scan_secrets: "true"
+          sarif_file: "results.sarif"
+          api: "${{ github.event.inputs.api_base || 'https://api.staging.endorlabs.com' }}"

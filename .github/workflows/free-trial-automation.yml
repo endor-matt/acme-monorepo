@@ -1,0 +1,210 @@
+name: Demo Tenant Automation
+on:
+  workflow_dispatch:
+    inputs:
+      tenant_name:
+        description: "GIMMME THE TENANT"
+        required: true
+        default: "demo-trial"
+        type: string
+      api_base:
+        description: "API base URL for EndorLabs"
+        required: true
+        type: choice
+        default: https://api.staging.endorlabs.com
+        options:
+          - https://api.staging.endorlabs.com
+          - https://api.endorlabs.com
+  # schedule:
+    # - cron: "0 0 * * *" # Rescans every daily at 12 AM
+
+jobs:
+  # Monorepo scan with phantom
+  create_project_acme-monorepo:
+    permissions:
+      id-token: write # This is required for requesting the JWT
+      contents: read # ability to access private repos
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: endorlabs/acme-monorepo
+      - uses: actions/setup-java@v3
+        with:
+          distribution: "microsoft"
+          java-version: "11"
+      - name: Compile Package
+        run: |
+          cd java
+          mvn clean install
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - name: Install dependencies
+        run: |
+          sudo apt-get -y -qq update
+          sudo apt-get -y -qq  install software-properties-common
+          sudo add-apt-repository ppa:deadsnakes/ppa
+          sudo apt-get -y -qq update
+          sudo apt-get -y -qq install python3
+          sudo apt-get -y -qq install python3-pip # python3 and pip installed
+          sudo apt-get -y -qq install git # installing git
+          python3 -m venv .venv && source .venv/bin/activate
+          cd endor-python-demo
+          python3 -m pip install -r requirements.txt #installing pip requirements  
+      - name: Setup Go
+        uses: actions/setup-go@v3    
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - uses: endorlabs/github-action@main
+        with:
+          namespace: "${{ github.event.inputs.tenant_name || 'demo-trial' }}"
+          scan_summary_output_type: "table"
+          pr: "false"
+          scan_git_logs: "true"
+          scan_dependencies: "true"
+          scan_secrets: "true"
+          scan_tools: "true"
+          additional_args: "--disable-phantom=false --as-default-branch"
+          api: "${{ github.event.inputs.api_base || 'https://api.staging.endorlabs.com' }}"
+
+  # This project is used to establish credibility for Java and show call graphs in depth
+  create_project_owasp:
+    permissions:
+      id-token: write # This is required for requesting the JWT
+      contents: read # ability to access private repos
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: OWASP-Benchmark/BenchmarkJava
+          ref: master
+      - uses: actions/setup-java@v3
+        with:
+          distribution: "microsoft"
+          java-version: "11"
+      - name: Compile Package
+        run: mvn clean install
+      - uses: endorlabs/github-action@main
+        with:
+          namespace: "${{ github.event.inputs.tenant_name || 'demo-trial'}}"
+          scan_summary_output_type: "table"
+          pr: "false"
+          scan_git_logs: "true"
+          scan_dependencies: "true"
+          scan_secrets: "true"
+          additional_args: "--disable-phantom=false --as-default-branch"
+          api: "${{ github.event.inputs.api_base || 'https://api.staging.endorlabs.com' }}"
+
+  create_project_ikismail-ShoppingCart:
+    permissions:
+      id-token: write # This is required for requesting the JWT
+      contents: read # ability to access private repos
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: ikismail/ShoppingCart
+          ref: c992c54bde6af51f67d8cfec5cdba6cbcda19f6c
+      - uses: actions/setup-java@v3
+        with:
+          distribution: "microsoft"
+          java-version: "17"
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.4
+      - name: Compile Package
+        run: mvn -B clean package
+      - uses: endorlabs/github-action@main
+        with:
+          namespace: "${{ github.event.inputs.tenant_name || 'demo-trial'}}"
+          scan_summary_output_type: "table"
+          pr: "false"
+          scan_git_logs: "true"
+          scan_dependencies: "true"
+          scan_secrets: "true"
+          additional_args: "--disable-phantom=false --as-default-branch"
+          api: "${{ github.event.inputs.api_base || 'https://api.staging.endorlabs.com' }}"
+
+  # Show Phantom Dependencies
+  create_project_openai:
+    permissions:
+      id-token: write # This is required for requesting the JWT
+      contents: read # ability to access private repos
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: openai/baselines
+      - name: Install pre-requisites
+        run: sudo apt-get update && sudo apt-get install -yy python3 python3-pip python3-wheel python3-venv cmake libopenmpi-dev python3-dev zlib1g-dev
+      - name: Create virtual environment & install deps
+        run: |
+          python3 -m venv .venv || _error "Could not create virtual env"
+          .venv/bin/python3 -m pip install wheel tensorflow==2.8.0|| _error "Installing wheel+tensorflow failed"
+          .venv/bin/python3 -m pip install -e . || _error "Installing package failed"
+      - name: Scan with Endor Labs
+        uses: endorlabs/github-action@main
+        with:
+          namespace: "${{ github.event.inputs.tenant_name || 'demo-trial'}}"
+          scan_summary_output_type: "table"
+          pr: "false"
+          enable_github_action_token: "true"
+          scan_git_logs: "true"
+          scan_dependencies: "true"
+          scan_secrets: "true"
+          additional_args: "--disable-phantom=false --as-default-branch"
+          api: "${{ github.event.inputs.api_base || 'https://api.staging.endorlabs.com' }}" 
+
+  create_project_for_gh_actions:
+    permissions:
+      id-token: write # This is required for requesting the JWT
+      contents: read # ability to access private repos
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: endorlabs/assorted-gh-actions
+      - uses: endorlabs/github-action@main
+        with:
+          namespace: "${{ github.event.inputs.tenant_name || 'jenkins' }}"
+          scan_summary_output_type: "json"
+          scan_github_actions: "true"
+          pr: "false"
+          scan_secrets: "true"
+          sarif_file: "results.sarif"
+          additional_args: "--as-default-branch"
+          api: "${{ github.event.inputs.api_base || 'https://api.staging.endorlabs.com' }}"
+      
+  # Show container scan
+  create_project_container_scan:
+    permissions:
+      id-token: write # This is required for requesting the JWT
+      contents: read # ability to access private repos
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+    steps:
+      - name: Scan with Endor Labs
+        uses: endorlabs/github-action@main
+        with:
+          namespace: "${{ github.event.inputs.tenant_name || 'demo-trial'}}"
+          scan_summary_output_type: "table"
+          enable_github_action_token: "true"
+          pr: "false"
+          additional_args: "--container=nginx:1.21.6 --project-name=nginx:1.21.6"
+          api: "${{ github.event.inputs.api_base || 'https://api.staging.endorlabs.com' }}" 

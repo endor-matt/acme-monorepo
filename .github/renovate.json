@@ -1,0 +1,51 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>renovatebot/.github", ":pinDependencies"],
+  "packageRules": [
+    {
+      "description": "Update references in Markdown files weekly",
+      "matchFileNames": ["**/*.md"],
+      "extends": ["schedule:weekly"],
+      "automerge": true,
+      "minimumReleaseAge": null,
+      "separateMajorMinor": false,
+      "commitMessageTopic": "references to {{{depName}}}",
+      "semanticCommitType": "docs",
+      "semanticCommitScope": null,
+      "additionalBranchPrefix": "docs-"
+    },
+    {
+      "description": "Use build semantic type for some deps",
+      "matchPackageNames": ["@vercel/ncc", "typescript"],
+      "semanticCommitType": "build"
+    },
+    {
+      "description": "Use `build` semantic commit scope for lockfile maintenance",
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "semanticCommitType": "build"
+    },
+    {
+      "description": "Use ci semantic type for some deps",
+      "matchFileNames": [".github/workflows/**"],
+      "semanticCommitType": "ci"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["^README\\.md$"],
+      "matchStrings": [
+        "uses: renovatebot/github-action@(?<currentValue>[^\\s]+)"
+      ],
+      "depNameTemplate": "renovatebot/github-action",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^README\\.md$"],
+      "matchStrings": ["renovate-version: (?<currentValue>[^\\s]+)"],
+      "depNameTemplate": "ghcr.io/renovatebot/renovate",
+      "datasourceTemplate": "docker"
+    }
+  ]
+}

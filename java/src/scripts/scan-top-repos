@@ -1,0 +1,96 @@
+#!/bin/bash
+
+set -e
+
+help () {
+    echo "scan-top-repos [language] [# repos] [namespace]"
+    echo "Command options:"
+    echo " - language   : go (default), java, rust, javascript, python"
+    echo " - # repos    : number of repos to scan (default 1)"
+    echo " - namespace  : namespace to use"
+    echo
+    echo "Example:"
+    echo "   scan-top-repos go 10"
+
+}
+
+export GITHUB_TOKEN=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
+
+if [ "$#" -gt 4 ]; then
+  help
+  exit 1
+fi
+
+GITHUB_NUM_PAGES=5
+
+LANGUAGE_OPT=${1:-"go"}
+case $LANGUAGE_OPT in
+  "go" | "java" | "rust" | "javascript" | "python")
+     ;;
+   *)
+      help
+      exit 1
+esac
+
+# Github query needs first letter in uppercase
+# shellcheck disable=SC2086
+LANGUAGE=$(tr '[:lower:]' '[:upper:]' <<< ${LANGUAGE_OPT:0:1})${LANGUAGE_OPT:1}
+
+NUM_REPOS=${2:-1}
+re='^[0-9]+$'
+if ! [[ "$NUM_REPOS" =~ $re ]] ; then
+   help
+   exit 1
+fi
+
+NAMESPACE=$3
+
+# check if endorctl is initialized with a config file.
+ENDORCTL_CONFIG=~/.endorctl/config.yaml
+if [ ! -f "$ENDORCTL_CONFIG" ]; then
+    # fail if you haven't initialized endorctl on the machine.
+    echo "You have not initialized endorctl. Please run the command 'endorctl init' outside of the monorepo directory and try again."
+    exit 1
+fi
+
+
+echo Scanning "$NUM_REPOS" repo\(s\) for language "'$LANGUAGE'"
+
+CURL_HDR="Accept: application/vnd.github.v3.text-match+json"
+GITHUB_API="https://api.github.com/search/repositories?q=language:$LANGUAGE+stars:>1000&per_page=100"
+
+# curlcmd PAGE INDEX
+curlcmd () {
+
+    curl -s -H "$CURL_HDR" "$GITHUB_API&page=$1" \ |
+       jq --argjson v "$2" '. | {cloneurl: .items[$v].clone_url, ref: .items[$v].default_branch}'
+}
+
+i=1
+while [ "$i" -le "$NUM_REPOS" ]; do
+    unset PAGE INDEX
+    PAGE=$(jot -r 1 1 "$GITHUB_NUM_PAGES")
+    INDEX=$((1 + RANDOM % 100))
+    echo Scanning repo no. "$i", page "$PAGE", index "$INDEX"
+
+    CURL_OUTPUT=$(curlcmd "$PAGE" "$INDEX")
+    ENDOR_SCAN_GIT_URL=$(echo "$CURL_OUTPUT" | jq --raw-output '.cloneurl')
+    ENDOR_SCAN_REFS=$(echo "$CURL_OUTPUT"  | jq --raw-output '.ref')
+    if [ "$ENDOR_SCAN_GIT_URL" = "null" ] || [ "$ENDOR_SCAN_REFS" = "null" ]
+    then
+       echo Failed. Exiting ...
+       exit 1
+    fi
+
+    REPO=$(basename -- "$ENDOR_SCAN_GIT_URL")
+    REPO="${REPO%.*}"
+
+    echo Scanning URL "$ENDOR_SCAN_GIT_URL", repo "$REPO" and refs "$ENDOR_SCAN_REFS" ...
+
+    osascript -e 'tell application "Terminal" to activate' \
+              -e 'tell application "Terminal" to do script "
+                  cd /tmp && git clone '"$ENDOR_SCAN_GIT_URL"' && cd '"$REPO"' && git checkout '"$ENDOR_SCAN_REFS"' &&
+                  endorctl scan  --path=./ --log-level=debug --enable='"git,analytics"' --languages=java,javascript,python,go,rust --verbose --log-level=debug -n '"$NAMESPACE"' && cd /tmp && rm -rf '"$REPO"'"'
+    ((i+=1))
+    sleep 10
+done

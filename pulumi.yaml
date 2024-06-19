@@ -1,0 +1,14 @@
+patterns:
+  - meta:
+      name: Pulumi
+      description: >-
+        Pulumi is an infrastructure as code (IaC) tool that allows users to define, deploy, and manage cloud infrastructure using familiar programming languages, enabling developers to provision and configure resources across various cloud providers through code.
+    spec:
+      categories:
+        - IaC
+      file_patterns:
+        - filename_patterns:
+            - Pulumi\.ya?ml$
+          examples:
+            - git@github.com:endorlabs/monorepo/tree/4c7a39a06123d3fe90fd1c916eaea2bb734bc867/src/golang/internal.endor.ai/clusters/pulumi/CI
+            - git@github.com:endorlabs/monorepo/tree/f65e75bf7065efb69d7e879903c4b9f90376006b/src/golang/internal.endor.ai/clusters/pulumi/CI
