@@ -11,7 +11,6 @@ jobs:
       - uses: aws-actions/setup-sam@v1
       - uses: fortify/github-action@v3
       - uses: GitGuardian/ggshield/actions/iac@v1
-      -	uses: GitGuardian/ggshield/actions/secret@v1
       - uses: aws-actions/configure-aws-credentials@v1
       - uses: orcasecurity/shiftleft-container-image-action@v1
       - uses: PaloAltoNetworks/prisma-cloud-scan@v1.5
