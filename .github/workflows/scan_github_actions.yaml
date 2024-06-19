@@ -23,7 +23,7 @@ jobs:
       contents: read # ability to access private repos
     runs-on: ubuntu-latest
     env:
-      GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+      GITHUB_TOKEN: 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 #fake secret
     steps:
       - uses: actions/checkout@v3
         with:
