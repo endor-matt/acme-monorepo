@@ -33,3 +33,4 @@ jobs:
             #scan_secrets: true
             #scan_git_logs: true
             additional_args: "--as-default-branch" #--tools --github --ghactions
+            sarif_file: endor-labs.sarif
