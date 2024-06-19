@@ -20,7 +20,7 @@ jobs:
             java-version: "17"
 
         - name: Compile Package
-          run: mvn clean install
+          run: mvn -f java/pom.xml clean install
             
         - name: Endor Labs SCA Scan
           uses: endorlabs/github-action@main

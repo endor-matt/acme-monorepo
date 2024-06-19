@@ -22,7 +22,7 @@ jobs:
             cache-dependency-path: package-lock.json
           
         - name: Build Dependencies
-          run: npm ci
+          run: npm --prefix javascript ci
           
         - name: Endor Labs SCA Scan
           uses: endorlabs/github-action@main
