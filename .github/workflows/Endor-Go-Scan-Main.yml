@@ -21,9 +21,9 @@ jobs:
         - name: Go Build 
           run: |
 
-            export GO111MODULE=on
-            export GOFLAGS=-modfile=golang/go.mod
-            go build
+            cd golang
+            go build .
+            cd
           
         - name: Endor Labs SCA Scan
           uses: endorlabs/github-action@main
