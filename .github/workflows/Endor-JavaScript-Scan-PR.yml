@@ -12,10 +12,10 @@ jobs:
     steps:
         
         - name: Checkout Repository
-          uses: actions/checkout@v3
+          uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26
 
         - name: Setup Node
-          uses: actions/setup-node@v3
+          uses: actions/setup-node@3235b876344d2a9aa001b8d1453c930bba69e610
           with:
             node-version: 18
           
@@ -23,7 +23,7 @@ jobs:
           run: npm --prefix javascript ci
           
         - name: Endor Labs SCA Scan
-          uses: endorlabs/github-action@main
+          uses: endorlabs/github-action@f46ffb04c928a9c9c356f9627bd60b710ed0963e
           with:
             namespace: "matt-demo"
             api: "https://api.endorlabs.com"
