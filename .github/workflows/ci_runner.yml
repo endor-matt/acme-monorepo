@@ -23,7 +23,7 @@ jobs:
       required: ${{ steps.ci_runner.outputs.build_endorci_runner_container }}
       userid: ${{ steps.user_name.outputs.user}}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26
       - uses: dorny/paths-filter@4512585405083f25c027a35db413c2b3b9006d50 #v2
         id: filter
         with:
@@ -49,7 +49,7 @@ jobs:
     env:
       IMAGE: us-central1-docker.pkg.dev/endor-ci/private/endorci_runner:${{ needs.ci_runner.outputs.userid }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26
       - name: Build Docker Image
         run: |
           cd infra/docker/endorci_runner
@@ -63,7 +63,7 @@ jobs:
           service_account: ${{ secrets.CI_SERVICE_ACCOUNT }}
           create_credentials_file: false
       - name: Login to Google Artifact Repository
-        uses: docker/login-action@v2
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
         with:
           registry: us-central1-docker.pkg.dev
           username: oauth2accesstoken
@@ -98,7 +98,7 @@ jobs:
           workload_identity_provider: ${{ secrets.CI_WORKLOAD_PROVIDER }}
           service_account: ${{ secrets.CI_SERVICE_ACCOUNT }}
       - name: Login to Google Artifact Repository
-        uses: docker/login-action@v2
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
         with:
           registry: us-central1-docker.pkg.dev
           username: oauth2accesstoken
@@ -134,7 +134,7 @@ jobs:
       NAMESPACE: ${{ needs.ci_runner.outputs.userid }}
       LABEL: endorci-runner-${{ needs.ci_runner.outputs.userid }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26
       - name: "GCP Authentication"
         id: auth
         uses: "google-github-actions/auth@2671692c371cbef34ed8ded9f197670c88c9d343" #v0.8.2

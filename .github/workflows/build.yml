@@ -11,10 +11,10 @@ jobs:
       - name: Run OX Security Scan to check for vulnerabilities
         with:
           ox_api_key: ${{ secrets.OX_API_KEY }}
-        uses: oxsecurity/ox-security-scan@main
+        uses: oxsecurity/ox-security-scan@12a49ea84d3f1597cd53b05997f1ad46a4b56935
       
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@0717577d45739eb3c851188b29f50ed6c0b2194e
 
       - run: |
          echo "ISSUE TITLE: ${{github.event.issue.title}}"
@@ -29,10 +29,10 @@ jobs:
          echo "PULLBODY: $PULL BODY"
          
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@27d0a4f181a40b142cce983c5393082c365d1480
       - name: Set up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@f211e3e9ded2d9377c8cadc4489a4e38014bc4c9
 
       - name: Inspect builder
         run: |
@@ -47,13 +47,13 @@ jobs:
         run: docker buildx build --output "type=image,push=false" --platform linux/amd64 --tag oxdemo/docker-service:latest --file ./Dockerfile .
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v1
+        uses: docker/login-action@dd4fa0671be5250ee6f50aedf4cb05514abda2c7
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
       - name: Push to Docker Hub
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@ac9327eae2b366085ac7f6a2d02df8aa8ead720a
         with:
           push: true
           tags: oxdemo/docker-service:latest
