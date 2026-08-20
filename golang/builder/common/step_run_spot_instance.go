@@ -444,7 +444,7 @@ func (s *StepRunSpotInstance) Run(ctx context.Context, state multistep.StateBag)
 			for _, outErr := range createOutput.Errors {
 				errString = errString + aws.StringValue(outErr.ErrorMessage)
 			}
-			err = fmt.Errorf(errString)
+			err = fmt.Errorf("%s", errString)
 		}
 		state.Put("error", err)
 		ui.Error(err.Error())
